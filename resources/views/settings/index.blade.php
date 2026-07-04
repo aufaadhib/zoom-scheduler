@@ -36,6 +36,165 @@
                 @if($tab === 'integrations')
                     <div class="animate-fade-in-up">
                         <div class="glass-card rounded-2xl p-6 sm:p-8">
+                            @php
+                                $callbackStatusConfig = [
+                                    'active' => [
+                                        'label' => 'Aktif',
+                                        'description' => 'Zoom sudah pernah memanggil endpoint callback ini.',
+                                        'classes' => 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+                                        'iconClasses' => 'text-emerald-400',
+                                    ],
+                                    'unconfigured' => [
+                                        'label' => 'Belum lengkap',
+                                        'description' => 'Lengkapi URL publik HTTPS dan Secret Token sebelum dipakai.',
+                                        'classes' => 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+                                        'iconClasses' => 'text-amber-300',
+                                    ],
+                                    'pending_zoom' => [
+                                        'label' => 'Belum disetting di Zoom',
+                                        'description' => 'Konfigurasi lokal siap, tetapi Zoom belum pernah memvalidasi endpoint ini.',
+                                        'classes' => 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+                                        'iconClasses' => 'text-amber-300',
+                                    ],
+                                    'disabled' => [
+                                        'label' => 'Nonaktif',
+                                        'description' => 'Event dari Zoom tidak akan diproses sampai callback diaktifkan.',
+                                        'classes' => 'bg-white/5 text-white/60 border-white/10',
+                                        'iconClasses' => 'text-white/50',
+                                    ],
+                                ][$callbackStatus];
+                            @endphp
+
+                            {{-- Zoom Callback Settings --}}
+                            <section class="mb-8 pb-8 border-b border-white/5">
+                                <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                                    <div class="flex items-start gap-4">
+                                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#2D8CFF]/20 to-[#0E71EB]/10 border border-[#2D8CFF]/20 flex items-center justify-center shrink-0">
+                                            <svg class="w-6 h-6 text-[#2D8CFF]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 7.5h-.75A2.25 2.25 0 004.5 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-.75M15 4.5h4.5m0 0V9m0-4.5L9 15" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="flex flex-wrap items-center gap-3">
+                                                <h2 class="text-lg font-bold text-white">Zoom Callback</h2>
+                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold {{ $callbackStatusConfig['classes'] }}">
+                                                    @if($callbackStatus === 'active')
+                                                        <svg class="w-3.5 h-3.5 {{ $callbackStatusConfig['iconClasses'] }}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                        </svg>
+                                                    @elseif(in_array($callbackStatus, ['unconfigured', 'pending_zoom'], true))
+                                                        <svg class="w-3.5 h-3.5 {{ $callbackStatusConfig['iconClasses'] }}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                        </svg>
+                                                    @else
+                                                        <svg class="w-3.5 h-3.5 {{ $callbackStatusConfig['iconClasses'] }}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                                                        </svg>
+                                                    @endif
+                                                    {{ $callbackStatusConfig['label'] }}
+                                                </span>
+                                            </div>
+                                            <p class="text-white/40 text-sm mt-1 max-w-2xl">{{ $callbackStatusConfig['description'] }}</p>
+                                        </div>
+                                    </div>
+
+                                    <form method="POST" action="{{ route('settings.zoom-callback.update') }}" class="w-full lg:w-auto" onsubmit="submitCallbackBtn()">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="callback_enabled" value="0">
+                                        <div class="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 lg:min-w-64">
+                                            <div>
+                                                <label for="callback_enabled" class="block text-sm font-semibold text-white">Callback</label>
+                                                <p id="zoom-callback-help" class="text-xs text-white/40">{{ $callbackEnabled ? 'On' : 'Off' }}</p>
+                                            </div>
+                                            <label class="relative inline-flex h-7 w-12 cursor-pointer items-center rounded-full">
+                                                <input id="callback_enabled" type="checkbox" name="callback_enabled" value="1" class="peer sr-only" aria-describedby="zoom-callback-help" @checked($callbackEnabled)>
+                                                <span class="absolute inset-0 rounded-full bg-white/10 transition-colors duration-200 peer-checked:bg-[#2D8CFF] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#2D8CFF]"></span>
+                                                <span class="relative ml-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></span>
+                                            </label>
+                                        </div>
+                                        <button type="submit" id="callback-save-btn" class="mt-3 w-full lg:w-auto btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold">
+                                            <span id="callback-save-text">Simpan Callback</span>
+                                            <svg class="w-4 h-4 animate-spin hidden" id="callback-save-loading" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                                    <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-semibold uppercase text-white/40">Callback URL untuk Zoom</p>
+                                                <code id="zoom-callback-url" class="mt-2 block break-all rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-blue-200">{{ $callbackUrl }}</code>
+                                            </div>
+                                            <button type="button" onclick="copyZoomCallbackUrl()" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 transition-all duration-200 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#2D8CFF] cursor-pointer">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6A2.25 2.25 0 0 1 10.5 3.75h7.5A2.25 2.25 0 0 1 20.25 6v7.5A2.25 2.25 0 0 1 18 15.75h-1.5M3.75 10.5A2.25 2.25 0 0 1 6 8.25h7.5a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-7.5Z" />
+                                                </svg>
+                                                <span id="copy-callback-text">Salin</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                                        <p class="text-xs font-semibold uppercase text-white/40">Checklist konfigurasi</p>
+                                        <div class="mt-3 space-y-2">
+                                            <div class="flex items-center gap-2 text-sm {{ $isPublicHttpsCallback ? 'text-emerald-300' : 'text-amber-300' }}">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    @if($isPublicHttpsCallback)
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75" />
+                                                    @else
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Z" />
+                                                    @endif
+                                                </svg>
+                                                <span>URL publik HTTPS</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-sm {{ $callbackSecretConfigured ? 'text-emerald-300' : 'text-amber-300' }}">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    @if($callbackSecretConfigured)
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75" />
+                                                    @else
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Z" />
+                                                    @endif
+                                                </svg>
+                                                <span>Secret token tersedia</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-sm {{ $callbackVerified ? 'text-emerald-300' : 'text-amber-300' }}">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    @if($callbackVerified)
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75" />
+                                                    @else
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Z" />
+                                                    @endif
+                                                </svg>
+                                                <span>Diverifikasi Zoom Marketplace</span>
+                                            </div>
+                                        </div>
+                                        @if($callbackLastReceivedAt)
+                                            <p class="mt-3 text-xs text-white/35">
+                                                Terakhir diterima: {{ $callbackLastReceivedAt }}{{ $callbackLastEvent ? ' - ' . $callbackLastEvent : '' }}
+                                            </p>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                @if($callbackStatus !== 'active')
+                                    <div class="mt-5 rounded-xl border border-amber-500/15 bg-amber-500/5 p-5">
+                                        <h3 class="text-sm font-bold text-amber-200">Cara setting callback di Zoom</h3>
+                                        <ol class="mt-3 space-y-2 text-sm leading-6 text-white/60">
+                                            <li>1. Pastikan <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">APP_URL</code> di file <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">.env</code> memakai URL publik HTTPS, misalnya URL ngrok.</li>
+                                            <li>2. Isi <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">ZOOM_WEBHOOK_SECRET</code> di <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">.env</code> sesuai Secret Token dari Zoom.</li>
+                                            <li>3. Jalankan <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">php artisan config:clear</code> setelah mengubah <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">.env</code>.</li>
+                                            <li>4. Di Zoom App Marketplace, buka menu Event Subscriptions, aktifkan event, lalu isi Event notification endpoint URL dengan URL callback di atas.</li>
+                                            <li>5. Pilih event yang dibutuhkan seperti <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">meeting.started</code>, <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">meeting.ended</code>, dan <code class="rounded bg-black/25 px-1.5 py-0.5 text-amber-100">recording.completed</code>.</li>
+                                        </ol>
+                                    </div>
+                                @endif
+                            </section>
+
                             {{-- Section Header --}}
                             <div class="flex items-center gap-4 mb-8 pb-6 border-b border-white/5">
                                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0">
@@ -151,6 +310,31 @@
     </div>
 
     <script>
+        function submitCallbackBtn() {
+            const btn = document.getElementById('callback-save-btn');
+            const text = document.getElementById('callback-save-text');
+            const loading = document.getElementById('callback-save-loading');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            text.classList.add('hidden');
+            loading.classList.remove('hidden');
+        }
+
+        async function copyZoomCallbackUrl() {
+            const callbackUrl = document.getElementById('zoom-callback-url').innerText.trim();
+            const copyText = document.getElementById('copy-callback-text');
+
+            try {
+                await navigator.clipboard.writeText(callbackUrl);
+                copyText.innerText = 'Tersalin';
+                setTimeout(() => copyText.innerText = 'Salin', 1800);
+            } catch (error) {
+                copyText.innerText = 'Gagal';
+                setTimeout(() => copyText.innerText = 'Salin', 1800);
+            }
+        }
+
         function submitTelegramBtn(form, btnId, textId, loadingId) {
             const btn = document.getElementById(btnId);
             const text = document.getElementById(textId);

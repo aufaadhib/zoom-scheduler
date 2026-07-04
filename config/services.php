@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'zoom' => [
+        'webhook_secret' => env('ZOOM_WEBHOOK_SECRET'),
+    ],
+
 ];

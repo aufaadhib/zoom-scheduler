@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Meeting;
+use App\Models\AppSetting;
 use App\Models\ZoomAccount;
 use DefStudio\Telegraph\Models\TelegraphChat;
 use Illuminate\Http\Request;
@@ -21,14 +22,29 @@ class ZoomWebhookController extends Controller
         // 1. URL Validation Challenge
         if ($event === 'endpoint.url_validation') {
             $plainToken = $payload['payload']['plainToken'] ?? '';
-            $secret = env('ZOOM_WEBHOOK_SECRET');
+            $secret = config('services.zoom.webhook_secret');
 
             $encryptedToken = hash_hmac('sha256', $plainToken, $secret);
+
+            AppSetting::setValue('zoom_callback_verified_at', now()->toDateTimeString());
+            AppSetting::setValue('zoom_callback_verified_url', $this->callbackUrl());
+            AppSetting::setValue('zoom_callback_last_event', $event);
+            AppSetting::setValue('zoom_callback_last_received_at', now()->toDateTimeString());
+            AppSetting::setValue('zoom_callback_last_received_url', $this->callbackUrl());
 
             return response()->json([
                 'plainToken' => $plainToken,
                 'encryptedToken' => $encryptedToken,
             ]);
+        }
+
+        AppSetting::setValue('zoom_callback_last_event', $event ?? 'unknown');
+        AppSetting::setValue('zoom_callback_last_received_at', now()->toDateTimeString());
+        AppSetting::setValue('zoom_callback_last_received_url', $this->callbackUrl());
+
+        if (!AppSetting::boolean('zoom_callback_enabled')) {
+            Log::info('Zoom Webhook skipped because callback is disabled', ['event' => $event]);
+            return response()->json(['status' => 'disabled']);
         }
 
         // 2. Validate Signature for all other events
@@ -78,7 +94,7 @@ class ZoomWebhookController extends Controller
     {
         $signature = $request->header('x-zm-signature');
         $timestamp = $request->header('x-zm-request-timestamp');
-        $secret = env('ZOOM_WEBHOOK_SECRET');
+        $secret = config('services.zoom.webhook_secret');
 
         if (!$signature || !$timestamp || !$secret) {
             return false;
@@ -89,6 +105,11 @@ class ZoomWebhookController extends Controller
         $expectedSignature = 'v0=' . $hash;
 
         return hash_equals($expectedSignature, $signature);
+    }
+
+    private function callbackUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/zoom/webhook';
     }
 
     private function getTelegramChatForMeeting(string $zoomMeetingId): ?TelegraphChat

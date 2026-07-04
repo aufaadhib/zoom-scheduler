@@ -43,4 +43,5 @@ Route::middleware('auth')->group(function () {
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings/zoom-callback', [SettingsController::class, 'updateZoomCallback'])->name('settings.zoom-callback.update');
 });
