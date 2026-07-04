@@ -23,19 +23,27 @@ class MeetingController extends Controller
     {
         $allMeetings = $request->user()->meetings()
             ->with('zoomAccount')
-            ->orderBy('start_time', 'asc') // Order active upcoming meetings chronologically
+            ->orderBy('start_time', 'asc')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Active meetings: Instant meetings, and Scheduled meetings that haven't ended yet
-        $activeMeetings = $allMeetings->filter(fn($m) => !$m->isPast());
+        $ongoingMeetings = $allMeetings->filter(fn($m) => $m->isOngoing());
         
-        // Past meetings: Scheduled meetings that have ended
-        // Sorted with the most recently ended first
-        $pastMeetings = $allMeetings->filter(fn($m) => $m->isPast())
-            ->sortByDesc('start_time');
+        $upcomingMeetings = $allMeetings->filter(fn($m) => !$m->isOngoing() && !$m->isFinished());
 
-        return view('meetings.index', compact('activeMeetings', 'pastMeetings'));
+        $finishedMeetings = $allMeetings->filter(fn($m) => $m->isFinished())
+            ->sortByDesc(fn($m) => $m->ended_at ?? $m->start_time ?? $m->created_at);
+
+        $activeMeetings = $ongoingMeetings->merge($upcomingMeetings);
+        $pastMeetings = $finishedMeetings;
+
+        return view('meetings.index', compact(
+            'activeMeetings',
+            'pastMeetings',
+            'ongoingMeetings',
+            'upcomingMeetings',
+            'finishedMeetings',
+        ));
     }
 
     /**
@@ -163,6 +171,7 @@ class MeetingController extends Controller
                 'topic' => $zoomMeetingResponse['topic'],
                 'agenda' => $zoomMeetingResponse['agenda'] ?? null,
                 'type' => $zoomMeetingResponse['type'],
+                'meeting_status' => 'scheduled',
                 'start_time' => $startTimeFormatted,
                 'duration' => $zoomMeetingResponse['duration'] ?? 60,
                 'timezone' => $zoomMeetingResponse['timezone'] ?? 'Asia/Jakarta',
@@ -340,6 +349,7 @@ class MeetingController extends Controller
                     'topic' => $zoomMeetingResponse['topic'],
                     'agenda' => $zoomMeetingResponse['agenda'] ?? null,
                     'type' => $zoomMeetingResponse['type'],
+                    'meeting_status' => 'scheduled',
                     'start_time' => $startTimeFormatted,
                     'duration' => $zoomMeetingResponse['duration'] ?? 60,
                     'timezone' => $zoomMeetingResponse['timezone'] ?? 'Asia/Jakarta',

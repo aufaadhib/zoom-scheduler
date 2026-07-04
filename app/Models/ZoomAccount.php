@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class ZoomAccount extends Model
 {
@@ -20,7 +21,22 @@ class ZoomAccount extends Model
         'access_token',
         'refresh_token',
         'token_expires_at',
+        'webhook_token',
+        'webhook_secret',
+        'webhook_enabled',
+        'webhook_verified_at',
+        'webhook_verified_url',
+        'webhook_last_event',
+        'webhook_last_received_at',
+        'webhook_last_received_url',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (ZoomAccount $zoomAccount): void {
+            $zoomAccount->webhook_token ??= Str::random(48);
+        });
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -35,6 +51,10 @@ class ZoomAccount extends Model
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',
             'token_expires_at' => 'datetime',
+            'webhook_secret' => 'encrypted',
+            'webhook_enabled' => 'boolean',
+            'webhook_verified_at' => 'datetime',
+            'webhook_last_received_at' => 'datetime',
         ];
     }
 
@@ -117,6 +137,50 @@ class ZoomAccount extends Model
     public function getLabelAttribute(): string
     {
         return $this->account_name ?? $this->display_name ?? $this->email ?? 'Zoom Account';
+    }
+
+    public function ensureWebhookToken(): string
+    {
+        if (!$this->webhook_token) {
+            $this->forceFill(['webhook_token' => Str::random(48)])->saveQuietly();
+        }
+
+        return $this->webhook_token;
+    }
+
+    public function getWebhookUrlAttribute(): string
+    {
+        $token = $this->ensureWebhookToken();
+
+        return rtrim((string) config('app.url'), '/') . '/zoom/webhook/' . $token;
+    }
+
+    public function getIsWebhookUrlPublicHttpsAttribute(): bool
+    {
+        return str_starts_with($this->webhook_url, 'https://')
+            && !str_contains($this->webhook_url, 'localhost')
+            && !str_contains($this->webhook_url, '127.0.0.1');
+    }
+
+    public function getIsWebhookSecretConfiguredAttribute(): bool
+    {
+        return filled($this->webhook_secret);
+    }
+
+    public function getIsWebhookVerifiedAttribute(): bool
+    {
+        return $this->webhook_verified_url === $this->webhook_url
+            && filled($this->webhook_verified_at);
+    }
+
+    public function getWebhookStatusAttribute(): string
+    {
+        return match (true) {
+            !$this->webhook_enabled => 'disabled',
+            !$this->is_webhook_secret_configured || !$this->is_webhook_url_public_https => 'unconfigured',
+            !$this->is_webhook_verified => 'pending_zoom',
+            default => 'active',
+        };
     }
 
     /**

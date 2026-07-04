@@ -81,6 +81,10 @@ class TelegramWebhookHandler extends WebhookHandler
         $this->chat->user_id = $user->id;
         $this->chat->save();
         
+        if (!$user->telegraph_chat_id) {
+            $user->telegraph_chat_id = $this->chat->id;
+        }
+
         $user->telegram_link_code = null;
         $user->save();
 

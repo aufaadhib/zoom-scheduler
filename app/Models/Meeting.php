@@ -14,12 +14,18 @@ class Meeting extends Model
         'topic',
         'agenda',
         'type',
+        'meeting_status',
+        'started_at',
+        'ended_at',
         'start_time',
         'duration',
         'timezone',
         'join_url',
         'start_url',
         'password',
+        'recording_share_url',
+        'recording_passcode',
+        'recording_completed_at',
     ];
 
     /**
@@ -31,6 +37,9 @@ class Meeting extends Model
     {
         return [
             'start_time' => 'datetime',
+            'started_at' => 'datetime',
+            'ended_at' => 'datetime',
+            'recording_completed_at' => 'datetime',
             'type' => 'integer',
             'duration' => 'integer',
         ];
@@ -69,9 +78,39 @@ class Meeting extends Model
     }
 
     /**
+     * Check if Zoom has sent a meeting.started event.
+     */
+    public function isOngoing(): bool
+    {
+        return $this->meeting_status === 'live';
+    }
+
+    /**
+     * Check if Zoom has sent a meeting.ended event or the scheduled duration has passed.
+     */
+    public function isFinished(): bool
+    {
+        return $this->meeting_status === 'ended'
+            || (!$this->isOngoing() && $this->isPastBySchedule());
+    }
+
+    /**
+     * Check if recording.completed has provided a recording link.
+     */
+    public function hasRecording(): bool
+    {
+        return filled($this->recording_share_url);
+    }
+
+    /**
      * Check if meeting has already happened (for scheduled meetings).
      */
     public function isPast(): bool
+    {
+        return $this->isFinished();
+    }
+
+    private function isPastBySchedule(): bool
     {
         $start = $this->start_time ? $this->start_time->copy() : $this->created_at->copy();
         return $start->addMinutes($this->duration)->isPast();

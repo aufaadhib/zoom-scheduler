@@ -15,8 +15,15 @@
             {{-- Header --}}
             <div class="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-white/5 mb-6">
                 <div>
-                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $meeting->isInstant() ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' }}">
-                        {{ $meeting->isInstant() ? 'Instant Meeting' : 'Scheduled Meeting' }}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border {{ $meeting->isOngoing() ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : ($meeting->isFinished() ? 'bg-white/5 text-white/45 border-white/10' : ($meeting->isInstant() ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-[#2D8CFF]/10 text-[#8EC5FF] border-[#2D8CFF]/20')) }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current {{ $meeting->isOngoing() ? 'animate-pulse' : 'opacity-70' }}"></span>
+                        @if($meeting->isOngoing())
+                            Sedang Berlangsung
+                        @elseif($meeting->isFinished())
+                            Selesai
+                        @else
+                            {{ $meeting->isInstant() ? 'Instant Meeting' : 'Scheduled Meeting' }}
+                        @endif
                     </span>
                     <h1 class="text-2xl font-bold text-white mt-3">{{ $meeting->topic }}</h1>
                     @if($meeting->agenda)
@@ -50,6 +57,25 @@
                 @endif
 
                 {{-- Meeting ID --}}
+                @if($meeting->started_at)
+                    <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
+                        <span class="sm:w-1/3 text-sm text-white/30">Mulai Aktual</span>
+                        <span class="sm:w-2/3 text-sm text-white font-medium">
+                            {{ $meeting->started_at->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i:s') }} WIB
+                        </span>
+                    </div>
+                @endif
+
+                @if($meeting->ended_at)
+                    <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
+                        <span class="sm:w-1/3 text-sm text-white/30">Selesai Aktual</span>
+                        <span class="sm:w-2/3 text-sm text-white font-medium">
+                            {{ $meeting->ended_at->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i:s') }} WIB
+                        </span>
+                    </div>
+                @endif
+
+                {{-- Meeting ID --}}
                 <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
                     <span class="sm:w-1/3 text-sm text-white/30">Meeting ID</span>
                     <span class="sm:w-2/3 text-sm text-white font-mono font-medium tracking-wide">
@@ -75,7 +101,7 @@
             </div>
 
             {{-- Links Panel --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div class="grid grid-cols-1 {{ $meeting->hasRecording() ? 'lg:grid-cols-3' : 'sm:grid-cols-2' }} gap-4 mb-8">
                 {{-- Start Link (Host Only) --}}
                 <div class="p-4 rounded-xl bg-[#2D8CFF]/5 border border-[#2D8CFF]/20 flex flex-col justify-between gap-3">
                     <div>
@@ -85,12 +111,18 @@
                         </h4>
                         <p class="text-white/30 text-xs mt-1">Gunakan link ini untuk langsung memulai meeting sebagai host.</p>
                     </div>
-                    <a href="{{ $meeting->start_url }}" target="_blank" rel="noopener" class="btn-primary py-2 w-full text-center text-xs flex items-center justify-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                        </svg>
-                        Mulai Meeting
-                    </a>
+                    @if(filled($meeting->start_url))
+                        <a href="{{ $meeting->start_url }}" target="_blank" rel="noopener" class="btn-primary py-2 w-full text-center text-xs flex items-center justify-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                            </svg>
+                            Mulai Meeting
+                        </a>
+                    @else
+                        <div class="w-full py-2 rounded-xl text-xs font-semibold text-white/30 bg-white/5 border border-white/10 text-center">
+                            Link host belum tersedia
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Join Link (Peserta) --}}
@@ -102,13 +134,44 @@
                         </h4>
                         <p class="text-white/30 text-xs mt-1">Bagikan link ini kepada peserta yang ingin bergabung.</p>
                     </div>
-                    <a href="{{ $meeting->join_url }}" target="_blank" rel="noopener" class="w-full py-2 rounded-xl text-xs font-semibold text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-center flex items-center justify-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                        </svg>
-                        Gabung Rapat
-                    </a>
+                    @if(filled($meeting->join_url))
+                        <a href="{{ $meeting->join_url }}" target="_blank" rel="noopener" class="w-full py-2 rounded-xl text-xs font-semibold text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-center flex items-center justify-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                            </svg>
+                            Gabung Rapat
+                        </a>
+                    @else
+                        <div class="w-full py-2 rounded-xl text-xs font-semibold text-white/30 bg-white/5 border border-white/10 text-center">
+                            Link peserta belum tersedia
+                        </div>
+                    @endif
                 </div>
+
+                @if($meeting->hasRecording())
+                    <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col justify-between gap-3">
+                        <div>
+                            <h4 class="text-sm font-semibold text-emerald-300 flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                                Rekaman Meeting
+                            </h4>
+                            <p class="text-white/30 text-xs mt-1">
+                                Rekaman tersedia dari event Zoom recording.completed.
+                            </p>
+                            @if($meeting->recording_passcode)
+                                <p class="text-white/45 text-xs mt-2">
+                                    Passcode: <span class="font-mono text-white/70">{{ $meeting->recording_passcode }}</span>
+                                </p>
+                            @endif
+                        </div>
+                        <a href="{{ $meeting->recording_share_url }}" target="_blank" rel="noopener" class="w-full py-2 rounded-xl text-xs font-semibold text-emerald-200 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all text-center flex items-center justify-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                            </svg>
+                            Cek Rekaman
+                        </a>
+                    </div>
+                @endif
             </div>
 
             {{-- Actions and Invitation Copy --}}

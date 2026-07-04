@@ -15,7 +15,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // Webhook Routes (Public)
-Route::post('/zoom/webhook', [\App\Http\Controllers\ZoomWebhookController::class, 'handle'])->name('zoom.webhook');
+Route::post('/zoom/webhook/{token}', [\App\Http\Controllers\ZoomWebhookController::class, 'handle'])->name('zoom.webhook');
 
 
 // Auth Routes
@@ -43,5 +43,6 @@ Route::middleware('auth')->group(function () {
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
-    Route::put('/settings/zoom-callback', [SettingsController::class, 'updateZoomCallback'])->name('settings.zoom-callback.update');
+    Route::put('/settings/zoom-callback/{zoomAccount}', [SettingsController::class, 'updateZoomCallback'])->name('settings.zoom-callback.update');
+    Route::post('/settings/zoom-callback/{zoomAccount}/test', [SettingsController::class, 'testZoomCallback'])->name('settings.zoom-callback.test');
 });

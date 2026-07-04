@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AppSetting;
+use App\Models\ZoomAccount;
+use DefStudio\Telegraph\Models\TelegraphChat;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 
 class SettingsController extends Controller
 {
@@ -14,53 +16,146 @@ class SettingsController extends Controller
     public function index(Request $request)
     {
         $tab = $request->query('tab', 'integrations');
-        $callbackUrl = rtrim((string) config('app.url'), '/') . '/zoom/webhook';
-        $isPublicHttpsCallback = str_starts_with($callbackUrl, 'https://')
-            && !str_contains($callbackUrl, 'localhost')
-            && !str_contains($callbackUrl, '127.0.0.1');
-        $callbackSecretConfigured = filled(config('services.zoom.webhook_secret'));
-        $callbackEnabled = AppSetting::boolean('zoom_callback_enabled');
-        $callbackVerifiedAt = AppSetting::getValue('zoom_callback_verified_at');
-        $callbackVerifiedUrl = AppSetting::getValue('zoom_callback_verified_url');
-        $callbackLastEvent = AppSetting::getValue('zoom_callback_last_event');
-        $callbackLastReceivedAt = AppSetting::getValue('zoom_callback_last_received_at');
-        $callbackLastReceivedUrl = AppSetting::getValue('zoom_callback_last_received_url');
-        $callbackVerified = ($callbackVerifiedUrl === $callbackUrl || $callbackLastReceivedUrl === $callbackUrl)
-            && (filled($callbackVerifiedAt) || filled($callbackLastReceivedAt));
-
-        $callbackStatus = match (true) {
-            !$callbackEnabled => 'disabled',
-            !$callbackSecretConfigured || !$isPublicHttpsCallback => 'unconfigured',
-            !$callbackVerified => 'pending_zoom',
-            default => 'active',
-        };
+        $zoomAccounts = $request->user()
+            ->zoomAccounts()
+            ->orderBy('account_name')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return view('settings.index', compact(
             'tab',
-            'callbackUrl',
-            'callbackEnabled',
-            'callbackSecretConfigured',
-            'isPublicHttpsCallback',
-            'callbackVerified',
-            'callbackVerifiedAt',
-            'callbackVerifiedUrl',
-            'callbackLastEvent',
-            'callbackLastReceivedAt',
-            'callbackLastReceivedUrl',
-            'callbackStatus',
+            'zoomAccounts',
         ));
     }
 
-    public function updateZoomCallback(Request $request): RedirectResponse
+    public function updateZoomCallback(Request $request, ZoomAccount $zoomAccount): RedirectResponse
     {
-        AppSetting::setValue('zoom_callback_enabled', $request->boolean('callback_enabled'));
+        if ($zoomAccount->user_id !== $request->user()->id) {
+            abort(403);
+        }
 
-        $message = $request->boolean('callback_enabled')
-            ? 'Callback Zoom diaktifkan. Pastikan endpoint dan secret sudah sama dengan pengaturan di Zoom.'
-            : 'Callback Zoom dinonaktifkan. Event dari Zoom tidak akan diproses sementara.';
+        $validated = $request->validate([
+            'callback_enabled' => ['nullable', 'boolean'],
+            'webhook_secret' => ['nullable', 'string', 'max:255'],
+        ], [
+            'webhook_secret.max' => 'Secret Token maksimal 255 karakter.',
+        ]);
+
+        $secretChanged = filled($validated['webhook_secret'] ?? null);
+        $callbackEnabled = $request->boolean('callback_enabled');
+
+        if ($callbackEnabled && !$secretChanged && !$zoomAccount->is_webhook_secret_configured) {
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('error', 'Isi Secret Token untuk akun "' . $zoomAccount->label . '" sebelum mengaktifkan callback.');
+        }
+
+        $updates = [
+            'webhook_enabled' => $callbackEnabled,
+        ];
+
+        if ($secretChanged) {
+            $updates['webhook_secret'] = $validated['webhook_secret'];
+            $updates['webhook_verified_at'] = null;
+            $updates['webhook_verified_url'] = null;
+            $updates['webhook_last_event'] = null;
+            $updates['webhook_last_received_at'] = null;
+            $updates['webhook_last_received_url'] = null;
+        }
+
+        $zoomAccount->update($updates);
+
+        $message = $callbackEnabled
+            ? 'Callback Zoom untuk "' . $zoomAccount->label . '" diaktifkan.'
+            : 'Callback Zoom untuk "' . $zoomAccount->label . '" dinonaktifkan.';
 
         return redirect()
             ->route('settings.index', ['tab' => 'integrations'])
             ->with('success', $message);
+    }
+
+    public function testZoomCallback(Request $request, ZoomAccount $zoomAccount): RedirectResponse
+    {
+        if ($zoomAccount->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if (!$zoomAccount->webhook_enabled) {
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('error', 'Aktifkan callback untuk akun "' . $zoomAccount->label . '" sebelum menjalankan tes.');
+        }
+
+        if (!$zoomAccount->is_webhook_secret_configured) {
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('error', 'Isi Secret Token untuk akun "' . $zoomAccount->label . '" sebelum menjalankan tes.');
+        }
+
+        $chats = $request->user()->telegraphChats()->get();
+
+        if ($request->user()->telegraph_chat_id && !$chats->contains('id', $request->user()->telegraph_chat_id)) {
+            $legacyChat = TelegraphChat::where('id', $request->user()->telegraph_chat_id)
+                ->where(function ($query) use ($request) {
+                    $query->where('user_id', $request->user()->id)
+                        ->orWhereNull('user_id');
+                })
+                ->first();
+
+            if ($legacyChat) {
+                $chats->push($legacyChat);
+            }
+        }
+
+        $chats = $chats->unique('id')->values();
+
+        if ($chats->isEmpty()) {
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('error', 'Hubungkan Telegram dulu sebelum menjalankan tes callback.');
+        }
+
+        try {
+            $accountName = htmlspecialchars($zoomAccount->label);
+            $email = htmlspecialchars($zoomAccount->email ?? 'Email belum terbaca');
+            $time = now('Asia/Jakarta')->format('d M Y H:i') . ' WIB';
+
+            $message = implode("\n", [
+                "<b>Tes Callback Zoom Berhasil</b>",
+                "",
+                "Akun: <b>{$accountName}</b>",
+                "Email: {$email}",
+                "Event: <code>internal.callback_test</code>",
+                "Waktu: {$time}",
+                "",
+                "Ini tes internal dari dashboard. Verifikasi Zoom Marketplace tetap dilakukan oleh request asli dari Zoom.",
+            ]);
+
+            $sent = 0;
+
+            foreach ($chats as $chat) {
+                $chat->html($message)->send();
+                $sent++;
+            }
+
+            $zoomAccount->update([
+                'webhook_last_event' => 'internal.callback_test',
+                'webhook_last_received_at' => now(),
+                'webhook_last_received_url' => $zoomAccount->webhook_url,
+            ]);
+
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('success', 'Tes callback untuk "' . $zoomAccount->label . '" berhasil dikirim ke ' . $sent . ' Telegram.');
+        } catch (\Throwable $e) {
+            Log::error('Zoom callback test failed', [
+                'zoom_account_id' => $zoomAccount->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('settings.index', ['tab' => 'integrations'])
+                ->with('error', 'Tes callback gagal: ' . $e->getMessage());
+        }
     }
 }

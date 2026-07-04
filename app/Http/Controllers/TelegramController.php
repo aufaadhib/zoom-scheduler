@@ -47,6 +47,14 @@ class TelegramController extends Controller
         if ($chat) {
             $chat->user_id = null;
             $chat->save();
+
+            if ((int) $user->telegraph_chat_id === (int) $chat->id) {
+                $user->telegraph_chat_id = $user->telegraphChats()
+                    ->where('id', '!=', $chat->id)
+                    ->value('id');
+                $user->save();
+            }
+
             return back()->with('success', 'Akun Telegram ' . ($chat->name ? "({$chat->name})" : "") . ' berhasil diputuskan.');
         }
 

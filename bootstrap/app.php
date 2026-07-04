@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'telegraph/*/webhook',
             'zoom/webhook',
+            'zoom/webhook/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
