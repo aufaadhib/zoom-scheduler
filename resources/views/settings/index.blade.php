@@ -119,6 +119,8 @@
                                                 $saveBtnId = 'callback-save-btn-' . $zoomAccount->id;
                                                 $saveTextId = 'callback-save-text-' . $zoomAccount->id;
                                                 $saveLoadingId = 'callback-save-loading-' . $zoomAccount->id;
+                                                $selectedNotificationEvents = $zoomAccount->webhook_notification_events ?? [];
+                                                $selectedNotificationCount = count($selectedNotificationEvents);
                                             @endphp
 
                                             <div id="zoom-callback-panel-{{ $zoomAccount->id }}" data-zoom-callback-panel class="{{ $loop->first ? '' : 'hidden' }} rounded-xl border border-white/10 bg-white/[0.02] p-5">
@@ -165,6 +167,44 @@
                                                                     <span class="absolute inset-0 rounded-full bg-white/10 transition-colors duration-200 peer-checked:bg-[#2D8CFF] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#2D8CFF]"></span>
                                                                     <span class="relative ml-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></span>
                                                                 </label>
+                                                            </div>
+
+                                                            <div class="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                                    <div class="min-w-0">
+                                                                        <div class="flex flex-wrap items-center gap-2">
+                                                                            <span class="text-sm font-semibold text-white">Notifikasi Telegram</span>
+                                                                            <span id="notification-count-{{ $zoomAccount->id }}" class="rounded-full border border-[#2D8CFF]/20 bg-[#2D8CFF]/10 px-2 py-0.5 text-[11px] font-semibold {{ $selectedNotificationCount > 0 ? 'text-blue-200' : 'text-white/45' }}">{{ $selectedNotificationCount }} aktif</span>
+                                                                        </div>
+                                                                        <p class="mt-1 text-xs leading-5 text-white/40">Centang event yang perlu dikirim ke Telegram.</p>
+                                                                    </div>
+                                                                    <div class="flex shrink-0 gap-2">
+                                                                        <button type="button" onclick="setNotificationEvents('{{ $zoomAccount->id }}', true)" class="min-h-8 rounded-lg border border-[#2D8CFF]/25 bg-[#2D8CFF]/10 px-2.5 text-[11px] font-semibold text-blue-200 transition-colors duration-200 hover:bg-[#2D8CFF]/15 focus:outline-none focus:ring-2 focus:ring-[#2D8CFF] cursor-pointer">Semua</button>
+                                                                        <button type="button" onclick="setNotificationEvents('{{ $zoomAccount->id }}', false)" class="min-h-8 rounded-lg border border-white/10 bg-black/15 px-2.5 text-[11px] font-semibold text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#2D8CFF] cursor-pointer">Reset</button>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="mt-3 grid grid-cols-2 gap-2">
+                                                                    @foreach(\App\Models\ZoomAccount::WEBHOOK_NOTIFICATION_EVENTS as $notificationEvent => $notificationConfig)
+                                                                        @php($notificationInputId = 'notification-event-' . $zoomAccount->id . '-' . str_replace('.', '-', $notificationEvent))
+                                                                        <label for="{{ $notificationInputId }}" class="group flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-2.5 py-2 transition-all duration-200 hover:border-[#2D8CFF]/30 hover:bg-[#2D8CFF]/5 has-[:checked]:border-[#2D8CFF]/45 has-[:checked]:bg-[#2D8CFF]/10">
+                                                                            <input
+                                                                                id="{{ $notificationInputId }}"
+                                                                                type="checkbox"
+                                                                                name="webhook_notification_events[]"
+                                                                                value="{{ $notificationEvent }}"
+                                                                                data-notification-group="{{ $zoomAccount->id }}"
+                                                                                onchange="updateNotificationCount('{{ $zoomAccount->id }}')"
+                                                                                class="h-4 w-4 shrink-0 rounded border-white/20 bg-black/20 text-[#2D8CFF] focus:ring-[#2D8CFF]"
+                                                                                @checked(in_array($notificationEvent, $selectedNotificationEvents, true))
+                                                                            >
+                                                                            <span class="min-w-0">
+                                                                                <span class="block truncate text-xs font-semibold text-white/75 group-has-[:checked]:text-blue-200">{{ $notificationConfig['label'] }}</span>
+                                                                                <code class="block truncate text-[10px] text-white/35">{{ $notificationEvent }}</code>
+                                                                            </span>
+                                                                        </label>
+                                                                    @endforeach
+                                                                </div>
+                                                                <p class="mt-2 text-[11px] leading-4 text-white/35">Event yang tidak dicentang tetap diproses untuk sinkronisasi data.</p>
                                                             </div>
 
                                                             <button type="submit" id="{{ $saveBtnId }}" class="mt-3 w-full btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold">
@@ -414,6 +454,26 @@
             document.querySelectorAll('[data-zoom-callback-panel]').forEach((panel) => {
                 panel.classList.toggle('hidden', panel.id !== panelId);
             });
+        }
+
+        function updateNotificationCount(accountId) {
+            const inputs = document.querySelectorAll(`[data-notification-group="${accountId}"]`);
+            const count = Array.from(inputs).filter((input) => input.checked).length;
+            const text = document.getElementById(`notification-count-${accountId}`);
+
+            if (!text) return;
+
+            text.innerText = `${count} aktif`;
+            text.classList.toggle('text-blue-200', count > 0);
+            text.classList.toggle('text-white/45', count === 0);
+        }
+
+        function setNotificationEvents(accountId, checked) {
+            document.querySelectorAll(`[data-notification-group="${accountId}"]`).forEach((input) => {
+                input.checked = checked;
+            });
+
+            updateNotificationCount(accountId);
         }
 
         function submitCallbackBtn(btnId, textId, loadingId) {

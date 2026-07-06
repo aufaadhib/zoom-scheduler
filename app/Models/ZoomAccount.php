@@ -8,6 +8,33 @@ use Illuminate\Support\Str;
 
 class ZoomAccount extends Model
 {
+    public const WEBHOOK_NOTIFICATION_EVENTS = [
+        'meeting.started' => [
+            'label' => 'Rapat dimulai',
+            'description' => 'Kirim notifikasi saat host memulai meeting.',
+        ],
+        'meeting.ended' => [
+            'label' => 'Rapat selesai',
+            'description' => 'Kirim notifikasi saat meeting berakhir.',
+        ],
+        'meeting.created' => [
+            'label' => 'Rapat baru',
+            'description' => 'Kirim notifikasi saat meeting dibuat dari Zoom.',
+        ],
+        'meeting.updated' => [
+            'label' => 'Perubahan jadwal',
+            'description' => 'Kirim notifikasi saat setting meeting berubah.',
+        ],
+        'meeting.deleted' => [
+            'label' => 'Rapat dibatalkan',
+            'description' => 'Kirim notifikasi saat meeting dihapus dari Zoom.',
+        ],
+        'recording.completed' => [
+            'label' => 'Rekaman tersedia',
+            'description' => 'Kirim notifikasi saat cloud recording selesai diproses.',
+        ],
+    ];
+
     protected $fillable = [
         'user_id',
         'account_name',
@@ -24,6 +51,7 @@ class ZoomAccount extends Model
         'webhook_token',
         'webhook_secret',
         'webhook_enabled',
+        'webhook_notification_events',
         'webhook_verified_at',
         'webhook_verified_url',
         'webhook_last_event',
@@ -53,6 +81,7 @@ class ZoomAccount extends Model
             'token_expires_at' => 'datetime',
             'webhook_secret' => 'encrypted',
             'webhook_enabled' => 'boolean',
+            'webhook_notification_events' => 'array',
             'webhook_verified_at' => 'datetime',
             'webhook_last_received_at' => 'datetime',
         ];
@@ -181,6 +210,13 @@ class ZoomAccount extends Model
             !$this->is_webhook_verified => 'pending_zoom',
             default => 'active',
         };
+    }
+
+    public function isWebhookNotificationEnabled(string $event): bool
+    {
+        $enabledEvents = $this->webhook_notification_events ?? [];
+
+        return in_array($event, $enabledEvents, true);
     }
 
     /**

@@ -192,6 +192,13 @@ class ZoomWebhookController extends Controller
         return $sent;
     }
 
+    private function shouldSendNotification(string $event, array $object = []): bool
+    {
+        $zoomAccount = $this->resolveZoomAccountForPayload($object);
+
+        return $zoomAccount?->isWebhookNotificationEnabled($event) ?? false;
+    }
+
     private function getAccountName(string $hostId): string
     {
         $account = ZoomAccount::where('zoom_account_id', $hostId)->first();
@@ -291,7 +298,7 @@ class ZoomWebhookController extends Controller
             $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
         }
         
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('meeting.started', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $accountName = htmlspecialchars($this->getAccountName($object['host_id'] ?? ''));
             $message = "🟢 <b>Rapat Dimulai!</b>\n\n"
@@ -321,7 +328,7 @@ class ZoomWebhookController extends Controller
             $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
         }
         
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('meeting.ended', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $accountName = htmlspecialchars($this->getAccountName($object['host_id'] ?? ''));
             $message = "🔴 <b>Rapat Selesai</b>\n\n"
@@ -342,7 +349,7 @@ class ZoomWebhookController extends Controller
         $object = $payload['object'];
         $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
 
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('meeting.created', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $time = isset($object['start_time']) ? \Carbon\Carbon::parse($object['start_time'])->timezone($object['timezone'] ?? 'Asia/Jakarta')->format('d M Y H:i') : 'Instan';
             $accountName = htmlspecialchars($this->getAccountName($object['host_id'] ?? ''));
@@ -370,7 +377,7 @@ class ZoomWebhookController extends Controller
             $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
         }
 
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('meeting.updated', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $accountName = htmlspecialchars($this->getAccountName($object['host_id'] ?? ''));
             $message = "🔄 <b>Perubahan Jadwal Rapat</b>\n\n"
@@ -394,7 +401,7 @@ class ZoomWebhookController extends Controller
             $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
         }
 
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('meeting.deleted', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $accountName = htmlspecialchars($this->getAccountName($object['host_id'] ?? ''));
             $message = "❌ <b>Rapat Dibatalkan</b>\n\n"
@@ -431,7 +438,7 @@ class ZoomWebhookController extends Controller
 
         $chats = $this->getTelegramChatsForHost($object['host_id'] ?? '');
 
-        if ($chats->isNotEmpty()) {
+        if ($chats->isNotEmpty() && $this->shouldSendNotification('recording.completed', $object)) {
             $topic = htmlspecialchars($object['topic'] ?? 'Meeting');
             $shareUrl = $shareUrl ?? '';
             $passcode = $passcode ?? 'Tidak ada';

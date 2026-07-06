@@ -11,6 +11,7 @@ Zoom Scheduler adalah aplikasi Laravel untuk mengelola banyak akun Zoom, membuat
 - Status meeting di `/meetings`: sedang berlangsung, mendatang, selesai, dan rekaman.
 - Callback/webhook Zoom per akun dengan Secret Token masing-masing.
 - Notifikasi Telegram ke semua chat Telegram yang tertaut ke user.
+- Pilihan notifikasi Telegram per event callback untuk setiap akun Zoom.
 - Tombol tes callback dari halaman pengaturan.
 
 ## Prasyarat
@@ -141,6 +142,18 @@ Pilih akun Zoom dari dropdown, lalu:
 
 Setiap akun Zoom punya URL dan Secret Token sendiri. Jangan memakai Secret Token global di `.env`.
 
+## Pilihan Notifikasi Telegram
+
+Notifikasi Telegram dapat dipilih per akun Zoom dari:
+
+```text
+Pengaturan -> Integrasi -> Zoom Callback per Akun
+```
+
+Pilih akun Zoom dari dropdown, lalu buka bagian `Notifikasi Telegram`. Centang hanya event yang ingin dikirim sebagai pesan Telegram, kemudian klik `Simpan Akun Ini`.
+
+Event yang tidak dicentang tetap diproses oleh aplikasi untuk sinkronisasi data meeting, status sedang berlangsung/selesai, dan link rekaman. Pengaturan ini hanya mengatur pesan Telegram.
+
 ## Event Zoom yang Wajib Dicentang
 
 Centang 6 event ini di Zoom Marketplace:
@@ -237,6 +250,7 @@ Periksa:
 - Callback aktif di aplikasi.
 - Secret Token per akun sudah benar.
 - Event yang dicentang sudah lengkap 6 event.
+- Event tersebut sudah dicentang di bagian Notifikasi Telegram akun Zoom terkait.
 - Telegram sudah tertaut.
 - Zoom benar-benar mengirim event tersebut.
 - `APP_URL` adalah HTTPS publik, bukan localhost.

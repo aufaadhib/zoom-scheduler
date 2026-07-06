@@ -37,6 +37,8 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'callback_enabled' => ['nullable', 'boolean'],
             'webhook_secret' => ['nullable', 'string', 'max:255'],
+            'webhook_notification_events' => ['nullable', 'array'],
+            'webhook_notification_events.*' => ['string', 'in:' . implode(',', array_keys(ZoomAccount::WEBHOOK_NOTIFICATION_EVENTS))],
         ], [
             'webhook_secret.max' => 'Secret Token maksimal 255 karakter.',
         ]);
@@ -52,6 +54,7 @@ class SettingsController extends Controller
 
         $updates = [
             'webhook_enabled' => $callbackEnabled,
+            'webhook_notification_events' => array_values($validated['webhook_notification_events'] ?? []),
         ];
 
         if ($secretChanged) {

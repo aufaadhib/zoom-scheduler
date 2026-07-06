@@ -1,4 +1,9 @@
 <x-layouts.app :title="'Detail Meeting — Zoom Scheduler'">
+    @php
+        $isFinished = $meeting->isFinished();
+        $linksGridClass = $isFinished ? 'sm:grid-cols-1' : ($meeting->hasRecording() ? 'lg:grid-cols-3' : 'sm:grid-cols-2');
+    @endphp
+
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {{-- Back button --}}
         <a href="{{ route('meetings.index') }}" class="inline-flex items-center gap-2 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors duration-200">
@@ -45,7 +50,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
                         <span class="sm:w-1/3 text-sm text-white/30">Waktu Pelaksanaan</span>
                         <span class="sm:w-2/3 text-sm text-white font-medium">
-                            {{ $meeting->start_time->setTimezone($meeting->timezone)->translatedFormat('l, d F Y — H:i') }} ({{ $meeting->timezone }})
+                            {{ $meeting->start_time->copy()->setTimezone($meeting->timezone)->locale('id')->translatedFormat('l, d F Y - H:i') }} ({{ $meeting->timezone }})
                         </span>
                     </div>
 
@@ -61,7 +66,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
                         <span class="sm:w-1/3 text-sm text-white/30">Mulai Aktual</span>
                         <span class="sm:w-2/3 text-sm text-white font-medium">
-                            {{ $meeting->started_at->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i:s') }} WIB
+                            {{ $meeting->started_at->copy()->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y - H:i:s') }} WIB
                         </span>
                     </div>
                 @endif
@@ -70,7 +75,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
                         <span class="sm:w-1/3 text-sm text-white/30">Selesai Aktual</span>
                         <span class="sm:w-2/3 text-sm text-white font-medium">
-                            {{ $meeting->ended_at->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i:s') }} WIB
+                            {{ $meeting->ended_at->copy()->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y - H:i:s') }} WIB
                         </span>
                     </div>
                 @endif
@@ -95,15 +100,16 @@
                 <div class="flex flex-col sm:flex-row sm:items-center py-3 border-b border-white/5 gap-2 sm:gap-0">
                     <span class="sm:w-1/3 text-sm text-white/30">Dibuat Pada</span>
                     <span class="sm:w-2/3 text-sm text-white font-medium">
-                        {{ $meeting->created_at->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y — H:i:s') }} WIB
+                        {{ $meeting->created_at->copy()->setTimezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y - H:i:s') }} WIB
                     </span>
                 </div>
             </div>
 
             {{-- Links Panel --}}
-            <div class="grid grid-cols-1 {{ $meeting->hasRecording() ? 'lg:grid-cols-3' : 'sm:grid-cols-2' }} gap-4 mb-8">
-                {{-- Start Link (Host Only) --}}
-                <div class="p-4 rounded-xl bg-[#2D8CFF]/5 border border-[#2D8CFF]/20 flex flex-col justify-between gap-3">
+            <div class="grid grid-cols-1 {{ $linksGridClass }} gap-4 mb-8">
+                @if(!$isFinished)
+                    {{-- Start Link (Host Only) --}}
+                    <div class="p-4 rounded-xl bg-[#2D8CFF]/5 border border-[#2D8CFF]/20 flex flex-col justify-between gap-3">
                     <div>
                         <h4 class="text-sm font-semibold text-[#2D8CFF] flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#2D8CFF]"></span>
@@ -123,10 +129,10 @@
                             Link host belum tersedia
                         </div>
                     @endif
-                </div>
+                    </div>
 
-                {{-- Join Link (Peserta) --}}
-                <div class="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-3">
+                    {{-- Join Link (Peserta) --}}
+                    <div class="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-3">
                     <div>
                         <h4 class="text-sm font-semibold text-white/80 flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>
@@ -146,7 +152,8 @@
                             Link peserta belum tersedia
                         </div>
                     @endif
-                </div>
+                    </div>
+                @endif
 
                 @if($meeting->hasRecording())
                     <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col justify-between gap-3">
@@ -159,8 +166,9 @@
                                 Rekaman tersedia dari event Zoom recording.completed.
                             </p>
                             @if($meeting->recording_passcode)
-                                <p class="text-white/45 text-xs mt-2">
-                                    Passcode: <span class="font-mono text-white/70">{{ $meeting->recording_passcode }}</span>
+                                <p class="text-white/45 text-xs mt-2 leading-5">
+                                    Passcode:
+                                    <span class="block break-all font-mono text-white/70">{{ $meeting->recording_passcode }}</span>
                                 </p>
                             @endif
                         </div>
@@ -189,7 +197,7 @@
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Batalkan Meeting
+                        {{ $isFinished ? 'Hapus Meeting' : 'Batalkan Meeting' }}
                     </button>
                 </div>
             </div>
@@ -209,9 +217,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-white mb-1">Batalkan Meeting Zoom?</h3>
+                <h3 class="text-lg font-bold text-white mb-1">{{ $isFinished ? 'Hapus Meeting?' : 'Batalkan Meeting Zoom?' }}</h3>
                 <p class="text-white/40 text-sm mb-6">
-                    Rapat ini akan dihapus dari aplikasi dan juga otomatis **dibatalkan/dihapus secara permanen dari server Zoom**.
+                    @if($isFinished)
+                        Rapat ini akan dihapus dari aplikasi dan server Zoom jika masih tersedia.
+                    @else
+                        Rapat ini akan dihapus dari aplikasi dan dibatalkan di server Zoom.
+                    @endif
                 </p>
 
                 <div class="flex items-center gap-3">
@@ -234,7 +246,7 @@
     <textarea id="invitation-text" class="sr-only" readonly>Topik: {{ $meeting->topic }}
 @if($meeting->agenda)Agenda: {{ $meeting->agenda }}
 @endif
-@if($meeting->isScheduled() && $meeting->start_time)Waktu: {{ $meeting->start_time->setTimezone($meeting->timezone)->translatedFormat('l, d F Y — H:i') }} ({{ $meeting->timezone }})
+@if($meeting->isScheduled() && $meeting->start_time)Waktu: {{ $meeting->start_time->copy()->setTimezone($meeting->timezone)->locale('id')->translatedFormat('l, d F Y - H:i') }} ({{ $meeting->timezone }})
 @elseWaktu: Instant Meeting (Mulai Sekarang)
 @endif
 
