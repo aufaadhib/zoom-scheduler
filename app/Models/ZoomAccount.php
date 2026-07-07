@@ -181,7 +181,7 @@ class ZoomAccount extends Model
     {
         $token = $this->ensureWebhookToken();
 
-        return rtrim((string) config('app.url'), '/') . '/zoom/webhook/' . $token;
+        return route('zoom.webhook', $token);
     }
 
     public function getIsWebhookUrlPublicHttpsAttribute(): bool

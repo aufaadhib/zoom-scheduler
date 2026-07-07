@@ -20,7 +20,7 @@ class ZoomOAuthService
         $state = $zoomAccount->id . '|' . Str::random(40);
         session(['zoom_oauth_state' => $state]);
 
-        $redirectUri = url('/zoom/callback');
+        $redirectUri = route('zoom.callback');
 
         $query = http_build_query([
             'response_type' => 'code',
@@ -39,7 +39,7 @@ class ZoomOAuthService
      */
     public function exchangeCodeForTokens(string $code, string $clientId, string $clientSecret): array
     {
-        $redirectUri = url('/zoom/callback');
+        $redirectUri = route('zoom.callback');
 
         $response = Http::withBasicAuth($clientId, $clientSecret)
             ->asForm()

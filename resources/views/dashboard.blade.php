@@ -218,7 +218,7 @@
             const form = document.getElementById('delete-form');
             const nameEl = document.getElementById('delete-account-name');
 
-            form.action = `/zoom/${accountId}`;
+            form.action = @json(route('zoom.destroy', ['zoomAccount' => '__ACCOUNT_ID__'])).replace('__ACCOUNT_ID__', accountId);
             nameEl.textContent = `"${accountName}"`;
             modal.classList.remove('hidden');
             modal.classList.add('flex');

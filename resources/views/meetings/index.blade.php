@@ -205,7 +205,7 @@
             const form = document.getElementById('delete-form');
             const nameEl = document.getElementById('delete-meeting-name');
 
-            form.action = `/meetings/${meetingId}`;
+            form.action = @json(route('meetings.destroy', ['meeting' => '__MEETING_ID__'])).replace('__MEETING_ID__', meetingId);
             nameEl.textContent = `"${meetingTopic}"`;
             modal.classList.remove('hidden');
             modal.classList.add('flex');

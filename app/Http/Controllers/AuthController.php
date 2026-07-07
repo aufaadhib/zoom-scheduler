@@ -10,6 +10,14 @@ use Illuminate\View\View;
 class AuthController extends Controller
 {
     /**
+     * Redirect the application root to the Zoom dashboard.
+     */
+    public function redirectToDashboard(): RedirectResponse
+    {
+        return redirect()->route('dashboard');
+    }
+
+    /**
      * Show the login form.
      */
     public function showLogin(): View|RedirectResponse

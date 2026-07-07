@@ -65,7 +65,7 @@
                             Di tab <strong class="text-white/60">App Credentials</strong> atau <strong class="text-white/60">Local Test</strong>, isi bagian <strong class="text-white/60">Redirect URL for OAuth</strong> dengan:
                         </p>
                         <div class="mt-2 flex items-center gap-2">
-                            <code class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-emerald-400 font-mono select-all" id="redirect-url">{{ url('/zoom/callback') }}</code>
+                            <code class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-emerald-400 font-mono select-all" id="redirect-url">{{ route('zoom.callback') }}</code>
                             <button type="button" onclick="copyUrl()" class="cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white/60 text-xs transition-all" id="copy-btn">
                                 Salin
                             </button>

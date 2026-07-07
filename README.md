@@ -54,6 +54,31 @@ Buat database `zoom_scheduler` di Laragon/phpMyAdmin/Adminer, lalu jalankan:
 php artisan migrate
 ```
 
+## Seed User Login
+
+Untuk membuat user login awal, jalankan:
+
+```bash
+php artisan db:seed
+```
+
+Default user yang dibuat:
+
+```text
+Email: admin@example.com
+Password: password
+```
+
+Jika ingin mengganti data user seed tanpa mengubah kode, tambahkan ini di `.env` sebelum menjalankan seeder:
+
+```env
+SEED_USER_NAME="Admin Zoom"
+SEED_USER_EMAIL=admin@example.com
+SEED_USER_PASSWORD=password
+```
+
+Seeder memakai email sebagai kunci. Jika email sudah ada, data user akan di-update, bukan dibuat dobel.
+
 Jalankan aplikasi:
 
 ```bash
